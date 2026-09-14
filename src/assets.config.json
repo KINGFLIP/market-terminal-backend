@@ -1,0 +1,27 @@
+{
+  "stockTokens": [
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA Stock Token",
+      "tokenAddress": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+      "chainlinkFeedAddress": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15"
+    },
+    {
+      "symbol": "AAPL",
+      "name": "Apple Stock Token",
+      "tokenAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+      "chainlinkFeedAddress": "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0"
+    },
+    {
+      "symbol": "TSLA",
+      "name": "Tesla Stock Token",
+      "tokenAddress": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+      "chainlinkFeedAddress": "0x4A1166a659A55625345e9515b32adECea5547C38"
+    }
+  ],
+  "cryptoAssets": [
+    { "symbol": "ETH", "coingeckoId": "ethereum" },
+    { "symbol": "SOL", "coingeckoId": "solana" },
+    { "symbol": "ARB", "coingeckoId": "arbitrum" }
+  ]
+}
