@@ -11,10 +11,17 @@ export const priceEvents = new EventEmitter();
 export const priceCache = {
   stockTokens: {},
   crypto: {},
+  cryptoLastUpdated: null, // separate from lastUpdated — crypto refreshes on its own, slower interval
   lastUpdated: null,
 };
 
 const DIVERGENCE_WARN_PCT = 5; // flag if REST vs. Chainlink differ by more than this, after multiplier adjustment
+
+// CoinGecko's free, no-key tier rate-limits aggressively. Polling it as often as the
+// Chainlink/REST stock data (every few seconds) reliably triggers 429s, which used to
+// leave stale crypto prices sitting in the cache indefinitely with no indication they
+// were stale. Crypto gets its own, much slower interval instead.
+const CRYPTO_POLL_INTERVAL_MS = Math.max(config.pollIntervalMs * 12, 60000); // at least 60s
 
 async function refreshStockTokens() {
   const symbols = config.assets.stockTokens.map((a) => a.symbol);
@@ -66,9 +73,23 @@ async function refreshStockTokens() {
 async function refreshCrypto() {
   try {
     priceCache.crypto = await getCryptoPrices();
+    priceCache.cryptoLastUpdated = new Date().toISOString();
   } catch (err) {
-    console.error('[priceAggregator] crypto refresh failed:', err.message);
+    // Leave the previous prices in place, but do NOT touch cryptoLastUpdated —
+    // that's what lets consumers detect "this hasn't actually refreshed in a while."
+    console.error('[priceAggregator] crypto refresh failed (keeping last known prices):', err.message);
   }
+}
+
+export async function refreshStockTokensAndEmit() {
+  await refreshStockTokens();
+  priceCache.lastUpdated = new Date().toISOString();
+  priceEvents.emit('update', priceCache);
+}
+
+export async function refreshCryptoAndEmit() {
+  await refreshCrypto();
+  priceEvents.emit('update', priceCache);
 }
 
 export async function refreshAll() {
@@ -78,8 +99,16 @@ export async function refreshAll() {
 }
 
 export function startPricePolling() {
+  // Initial load: get everything once, immediately.
   refreshAll().catch((err) => console.error('[priceAggregator] initial refresh failed:', err.message));
+
+  // Stock tokens: fast, per config (Robinhood's REST API tolerates this fine).
   setInterval(() => {
-    refreshAll().catch((err) => console.error('[priceAggregator] refresh failed:', err.message));
+    refreshStockTokensAndEmit().catch((err) => console.error('[priceAggregator] stock refresh failed:', err.message));
   }, config.pollIntervalMs);
+
+  // Crypto: slow, separate interval — see CRYPTO_POLL_INTERVAL_MS comment above.
+  setInterval(() => {
+    refreshCryptoAndEmit().catch((err) => console.error('[priceAggregator] crypto refresh failed:', err.message));
+  }, CRYPTO_POLL_INTERVAL_MS);
 }
