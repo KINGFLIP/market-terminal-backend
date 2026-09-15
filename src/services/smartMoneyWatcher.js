@@ -1,17 +1,15 @@
 import { ethers } from 'ethers';
-import { EventEmitter } from 'events';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { config } from '../config.js';
 import { priceCache } from './priceAggregator.js';
+import { pushSmartMoneyEntry, smartMoneyFeed, smartMoneyEvents } from './smartMoneyFeed.js';
+
+export { smartMoneyFeed, smartMoneyEvents }; // re-exported for backward compatibility with existing imports
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const erc20Abi = JSON.parse(readFileSync(path.join(__dirname, '../abi/erc20.json'), 'utf-8'));
-
-export const smartMoneyEvents = new EventEmitter();
-export const smartMoneyFeed = []; // most recent first, capped below
-const MAX_FEED_LENGTH = 200;
 
 let provider = null;
 function getProvider() {
@@ -49,7 +47,7 @@ async function scanAsset(asset) {
 
     if (!isTrackedWallet && !isLarge) continue;
 
-    const entry = {
+    pushSmartMoneyEntry({
       time: new Date().toISOString(),
       asset: asset.symbol,
       from,
@@ -57,13 +55,10 @@ async function scanAsset(asset) {
       amountTokens,
       amountUsd,
       txHash: evt.transactionHash,
+      network: 'Robinhood Chain',
       isTrackedWallet,
       isLarge,
-    };
-
-    smartMoneyFeed.unshift(entry);
-    if (smartMoneyFeed.length > MAX_FEED_LENGTH) smartMoneyFeed.pop();
-    smartMoneyEvents.emit('activity', entry);
+    });
   }
 }
 

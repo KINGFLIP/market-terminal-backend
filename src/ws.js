@@ -1,6 +1,6 @@
 import { WebSocketServer } from 'ws';
 import { priceEvents, priceCache } from './services/priceAggregator.js';
-import { smartMoneyEvents } from './services/smartMoneyWatcher.js';
+import { smartMoneyEvents } from './services/smartMoneyFeed.js';
 
 export function attachWebSocketServer(httpServer) {
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });

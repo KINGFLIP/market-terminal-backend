@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { smartMoneyFeed } from '../services/smartMoneyWatcher.js';
+import { smartMoneyFeed } from '../services/smartMoneyFeed.js';
 
 export const smartMoneyRouter = Router();
 

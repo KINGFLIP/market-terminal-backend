@@ -26,5 +26,13 @@ export const config = {
     .map((w) => w.trim().toLowerCase())
     .filter(Boolean),
 
+  // Solana's own public RPC — free, no signup, separately rate-limited from everything above.
+  solanaRpcUrl: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+  // Solana addresses are base58 and case-sensitive — do NOT lowercase these.
+  solanaTrackedWallets: (process.env.SOLANA_TRACKED_WALLETS || '')
+    .split(',')
+    .map((w) => w.trim())
+    .filter(Boolean),
+
   assets: assetRegistry,
 };

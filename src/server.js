@@ -7,6 +7,7 @@ import { assetsRouter } from './routes/assets.js';
 import { smartMoneyRouter } from './routes/smartMoney.js';
 import { startPricePolling } from './services/priceAggregator.js';
 import { startSmartMoneyWatcher } from './services/smartMoneyWatcher.js';
+import { startSolanaWatcher } from './services/solanaWatcher.js';
 import { attachWebSocketServer } from './ws.js';
 
 const app = express();
@@ -28,4 +29,5 @@ server.listen(config.port, () => {
 
   startPricePolling();
   startSmartMoneyWatcher();
+  startSolanaWatcher();
 });
