@@ -20,8 +20,8 @@
     }
   ],
   "cryptoAssets": [
-    { "symbol": "ETH", "coingeckoId": "ethereum" },
-    { "symbol": "SOL", "coingeckoId": "solana" },
-    { "symbol": "ARB", "coingeckoId": "arbitrum" }
+    { "symbol": "ETH", "coingeckoId": "ethereum", "coincapId": "ethereum" },
+    { "symbol": "SOL", "coingeckoId": "solana", "coincapId": "solana" },
+    { "symbol": "ARB", "coingeckoId": "arbitrum", "coincapId": "arbitrum" }
   ]
 }
