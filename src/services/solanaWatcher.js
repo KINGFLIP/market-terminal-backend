@@ -65,6 +65,8 @@ async function scanWallet(address) {
         network: 'Solana',
         isTrackedWallet: true, // every Solana wallet here is explicitly tracked (no threshold-only mode yet)
         isLarge,
+        trackedWallet: address,
+        direction: deltaSol > 0 ? 'BUY' : 'SELL',
       });
     } catch (err) {
       console.error(`[solanaWatcher] failed to process ${sigInfo.signature}:`, err.message);

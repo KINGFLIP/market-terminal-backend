@@ -47,6 +47,11 @@ async function scanAsset(asset) {
 
     if (!isTrackedWallet && !isLarge) continue;
 
+    // Which side (if any) is a wallet we're tracking, and was it a buy or sell for them?
+    let trackedWallet = null, direction = null;
+    if (config.trackedWallets.includes(to.toLowerCase())) { trackedWallet = to; direction = 'BUY'; }
+    else if (config.trackedWallets.includes(from.toLowerCase())) { trackedWallet = from; direction = 'SELL'; }
+
     pushSmartMoneyEntry({
       time: new Date().toISOString(),
       asset: asset.symbol,
@@ -58,6 +63,8 @@ async function scanAsset(asset) {
       network: 'Robinhood Chain',
       isTrackedWallet,
       isLarge,
+      trackedWallet,
+      direction,
     });
   }
 }
