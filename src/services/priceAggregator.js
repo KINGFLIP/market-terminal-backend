@@ -16,12 +16,35 @@ export const priceCache = {
 };
 
 const DIVERGENCE_WARN_PCT = 5; // flag if REST vs. Chainlink differ by more than this, after multiplier adjustment
+const DAY_MS = 24 * 3600 * 1000;
 
 // CoinGecko's free, no-key tier rate-limits aggressively. Polling it as often as the
 // Chainlink/REST stock data (every few seconds) reliably triggers 429s, which used to
 // leave stale crypto prices sitting in the cache indefinitely with no indication they
 // were stale. Crypto gets its own, much slower interval instead.
 const CRYPTO_POLL_INTERVAL_MS = Math.max(config.pollIntervalMs * 12, 60000); // at least 60s
+
+// Real, shared 24h high/low per symbol — one source of truth every device reads,
+// instead of each browser tab computing its own from whatever ticks it happened
+// to see. Resets its window every 24h. Like everything else here, this lives in
+// memory only: a backend restart starts a fresh window (honestly reflected by
+// windowStartedAt, which the frontend can use to know how much real range this
+// actually covers rather than assuming a full day has been observed).
+const dayRanges = {}; // symbol -> { high, low, windowStartedAt }
+
+function updateDayRange(symbol, price) {
+  if (price == null) return null;
+  const now = Date.now();
+  let r = dayRanges[symbol];
+  if (!r || now - r.windowStartedAt > DAY_MS) {
+    r = { high: price, low: price, windowStartedAt: now };
+    dayRanges[symbol] = r;
+  } else {
+    if (price > r.high) r.high = price;
+    if (price < r.low) r.low = price;
+  }
+  return { high: r.high, low: r.low, windowStartedAt: new Date(r.windowStartedAt).toISOString() };
+}
 
 async function refreshStockTokens() {
   const symbols = config.assets.stockTokens.map((a) => a.symbol);
@@ -43,6 +66,7 @@ async function refreshStockTokens() {
     const r = rest[sym];
     const m = (meta.assets || []).find((a) => a.tokenSymbol === sym);
     const multiplier = m ? Number(m.currentMultiplier || 1) : 1;
+    const price = cl && !cl.error ? cl.price : null;
 
     let divergencePct = null;
     if (cl && !cl.error && r) {
@@ -52,11 +76,16 @@ async function refreshStockTokens() {
       divergencePct = cl.price ? (Math.abs(cl.price - restAdjusted) / cl.price) * 100 : null;
     }
 
+    const range = updateDayRange(sym, price);
+
     priceCache.stockTokens[sym] = {
       symbol: sym,
       name: asset.name,
-      chainlinkPrice: cl && !cl.error ? cl.price : null,
+      chainlinkPrice: price,
       chainlinkStale: cl ? cl.isStale : null,
+      dayHigh: range ? range.high : null,
+      dayLow: range ? range.low : null,
+      dayRangeWindowStartedAt: range ? range.windowStartedAt : null,
       restBid: r ? r.bid : null,
       restAsk: r ? r.ask : null,
       dailyVolume: r ? r.dailyVolume : null,
@@ -72,7 +101,12 @@ async function refreshStockTokens() {
 
 async function refreshCrypto() {
   try {
-    priceCache.crypto = await getCryptoPrices();
+    const fresh = await getCryptoPrices();
+    for (const [sym, data] of Object.entries(fresh)) {
+      const range = updateDayRange(sym, data.price);
+      fresh[sym] = { ...data, dayHigh: range ? range.high : null, dayLow: range ? range.low : null, dayRangeWindowStartedAt: range ? range.windowStartedAt : null };
+    }
+    priceCache.crypto = fresh;
     priceCache.cryptoLastUpdated = new Date().toISOString();
   } catch (err) {
     // Leave the previous prices in place, but do NOT touch cryptoLastUpdated —
