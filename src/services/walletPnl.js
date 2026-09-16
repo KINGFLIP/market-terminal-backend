@@ -65,3 +65,14 @@ export function getWalletPnlSummary(wallet) {
       .map(([asset, p]) => ({ asset, qty: p.qty, avgCost: p.avgCost })),
   };
 }
+
+// Ranks every wallet we've recorded at least one closed trade for, by realized
+// P&L. Wallets with zero closed trades are left out — nothing meaningful to
+// rank yet, and including them would just be clutter at the bottom.
+export function getLeaderboard(limit = 20) {
+  const rows = Object.keys(ledger)
+    .map((wallet) => ({ wallet, ...getWalletPnlSummary(wallet) }))
+    .filter((row) => row.closedTradeCount > 0)
+    .sort((a, b) => b.realizedPnl - a.realizedPnl);
+  return rows.slice(0, limit);
+}
