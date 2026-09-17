@@ -5,6 +5,7 @@ import path from 'path';
 import { config } from '../config.js';
 import { priceCache } from './priceAggregator.js';
 import { pushSmartMoneyEntry, smartMoneyFeed, smartMoneyEvents } from './smartMoneyFeed.js';
+import { isTracked } from './trackedWallets.js';
 
 export { smartMoneyFeed, smartMoneyEvents }; // re-exported for backward compatibility with existing imports
 
@@ -40,17 +41,15 @@ async function scanAsset(asset) {
     const price = priceInfo?.chainlinkPrice ?? priceInfo?.restAsk ?? null;
     const amountUsd = price ? amountTokens * price : null;
 
-    const isTrackedWallet =
-      config.trackedWallets.includes(from.toLowerCase()) ||
-      config.trackedWallets.includes(to.toLowerCase());
+    const isTrackedWallet = isTracked(from) || isTracked(to);
     const isLarge = amountUsd !== null && amountUsd >= config.smartMoneyMinUsd;
 
     if (!isTrackedWallet && !isLarge) continue;
 
     // Which side (if any) is a wallet we're tracking, and was it a buy or sell for them?
     let trackedWallet = null, direction = null;
-    if (config.trackedWallets.includes(to.toLowerCase())) { trackedWallet = to; direction = 'BUY'; }
-    else if (config.trackedWallets.includes(from.toLowerCase())) { trackedWallet = from; direction = 'SELL'; }
+    if (isTracked(to)) { trackedWallet = to; direction = 'BUY'; }
+    else if (isTracked(from)) { trackedWallet = from; direction = 'SELL'; }
 
     pushSmartMoneyEntry({
       time: new Date().toISOString(),

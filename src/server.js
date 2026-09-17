@@ -6,12 +6,14 @@ import { pricesRouter } from './routes/prices.js';
 import { assetsRouter } from './routes/assets.js';
 import { smartMoneyRouter } from './routes/smartMoney.js';
 import { walletPnlRouter } from './routes/walletPnl.js';
+import { trackedWalletsRouter } from './routes/trackedWallets.js';
 import { startPricePolling } from './services/priceAggregator.js';
 import { startSmartMoneyWatcher } from './services/smartMoneyWatcher.js';
 import { startSolanaWatcher } from './services/solanaWatcher.js';
 import { attachWebSocketServer } from './ws.js';
 
 const app = express();
+app.set('trust proxy', true); // Render sits behind a proxy — needed so req.ip is the real visitor IP, not Render's, for rate limiting
 app.use(cors());
 app.use(express.json());
 
@@ -20,6 +22,7 @@ app.use('/api/prices', pricesRouter);
 app.use('/api/assets', assetsRouter);
 app.use('/api/smart-money', smartMoneyRouter);
 app.use('/api/wallet-pnl', walletPnlRouter);
+app.use('/api/tracked-wallets', trackedWalletsRouter);
 
 const server = http.createServer(app);
 attachWebSocketServer(server);
