@@ -20,7 +20,7 @@ function getProvider() {
   return provider;
 }
 
-let lastCheckedBlock = null;
+const lastCheckedBlockBySymbol = {};
 
 async function scanAsset(asset) {
   if (asset.tokenAddress.startsWith('REPLACE_WITH')) return; // not configured yet
@@ -28,7 +28,13 @@ async function scanAsset(asset) {
   const p = getProvider();
   const contract = new ethers.Contract(asset.tokenAddress, erc20Abi, p);
   const latestBlock = await p.getBlockNumber();
-  const fromBlock = lastCheckedBlock ?? latestBlock - 500; // first run: look back ~500 blocks
+  let fromBlock = lastCheckedBlockBySymbol[asset.symbol] ?? latestBlock - 500; // first run: look back ~500 blocks
+
+  // If this asset has been failing for a long stretch, its checkpoint could
+  // fall far enough behind to exceed the RPC's own 2000-block-per-request
+  // cap — trading a small amount of possibly-missed older history for
+  // avoiding a second kind of hard failure.
+  fromBlock = Math.max(fromBlock, latestBlock - 1800);
 
   // If the chain hasn't produced a new block since our last checkpoint,
   // fromBlock can end up greater than latestBlock — asking the RPC for a
@@ -72,6 +78,12 @@ async function scanAsset(asset) {
       direction,
     });
   }
+
+  // Only advance THIS asset's own checkpoint after its scan actually
+  // succeeded. If queryFilter above threw (RPC timeout, etc.), we never
+  // reach this line — so next cycle correctly retries the same block range
+  // instead of silently skipping past blocks we never actually looked at.
+  lastCheckedBlockBySymbol[asset.symbol] = latestBlock + 1;
 }
 
 export async function scanAllAssets() {
@@ -82,7 +94,6 @@ export async function scanAllAssets() {
       console.error(`[smartMoneyWatcher] scan failed for ${asset.symbol}:`, err.message);
     }
   }
-  lastCheckedBlock = (await getProvider().getBlockNumber()) + 1;
 }
 
 export function startSmartMoneyWatcher() {
