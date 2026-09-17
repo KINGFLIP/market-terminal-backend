@@ -8,6 +8,7 @@
 
 const ledger = {}; // lowercased wallet -> { positions: { asset: {qty, avgCost} }, realizedPnl, closedTrades: [] }
 const trackingStartedAt = new Date().toISOString();
+const COPY_TRADE_STARTING_BALANCE = 1000;
 
 function getLedger(wallet) {
   const key = wallet.toLowerCase();
@@ -32,19 +33,34 @@ export function recordTrade(entry) {
     return;
   }
 
-  // SELL — only counts as a "known" trade (for win rate) if we actually saw
-  // the buy that established a cost basis. A sell with no prior observed
-  // buy just means we started watching after they'd already acquired it —
-  // logged, but excluded from win-rate math rather than treated as a guess.
+  // SELL — only counts as a "known" trade (for win rate / copy-trade sim) if
+  // we actually saw the buy that established a cost basis. A sell with no
+  // prior observed buy just means we started watching after they'd already
+  // acquired it — logged, but excluded from this math rather than guessed at.
   const hadCostBasis = pos.qty > 0;
   const sellQty = hadCostBasis ? Math.min(entry.amountTokens, pos.qty) : entry.amountTokens;
   const costBasis = hadCostBasis ? sellQty * pos.avgCost : 0;
   const proceeds = sellQty * pricePerUnit;
   const pnl = hadCostBasis ? proceeds - costBasis : 0;
+  const pctReturn = hadCostBasis && costBasis > 0 ? (proceeds - costBasis) / costBasis : null;
   pos.qty = Math.max(0, pos.qty - sellQty);
 
   if (hadCostBasis) l.realizedPnl += pnl;
-  l.closedTrades.push({ time: entry.time, asset, pnl, win: pnl > 0, hadCostBasis });
+  l.closedTrades.push({ time: entry.time, asset, pnl, pctReturn, win: pnl > 0, hadCostBasis });
+}
+
+// "If you'd copied every one of this wallet's completed trades, putting your
+// ENTIRE simulated balance into each one in sequence, what would you have
+// now?" This is a simplified, honestly-caveated simulation — it assumes
+// 100% position sizing on every trade (no real risk management), which is
+// not how anyone should actually copy-trade. It's a hook, not investment advice.
+function simulateCopyTrade(knownTrades) {
+  let balance = COPY_TRADE_STARTING_BALANCE;
+  for (const t of knownTrades) {
+    if (t.pctReturn == null) continue;
+    balance *= 1 + t.pctReturn;
+  }
+  return balance;
 }
 
 export function getWalletPnlSummary(wallet) {
@@ -60,6 +76,8 @@ export function getWalletPnlSummary(wallet) {
     closedTradeCount: knownTrades.length,
     winRate: knownTrades.length ? (wins / knownTrades.length) * 100 : null,
     tradesLast30Days,
+    copyTradeStartingBalance: COPY_TRADE_STARTING_BALANCE,
+    copyTradeEndingBalance: knownTrades.length ? simulateCopyTrade(knownTrades) : null,
     openPositions: Object.entries(l.positions)
       .filter(([, p]) => p.qty > 0)
       .map(([asset, p]) => ({ asset, qty: p.qty, avgCost: p.avgCost })),

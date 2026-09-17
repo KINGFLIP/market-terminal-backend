@@ -7,6 +7,7 @@ import { assetsRouter } from './routes/assets.js';
 import { smartMoneyRouter } from './routes/smartMoney.js';
 import { walletPnlRouter } from './routes/walletPnl.js';
 import { trackedWalletsRouter } from './routes/trackedWallets.js';
+import { marketPulseRouter } from './routes/marketPulse.js';
 import { startPricePolling } from './services/priceAggregator.js';
 import { startSmartMoneyWatcher } from './services/smartMoneyWatcher.js';
 import { startSolanaWatcher } from './services/solanaWatcher.js';
@@ -23,6 +24,7 @@ app.use('/api/assets', assetsRouter);
 app.use('/api/smart-money', smartMoneyRouter);
 app.use('/api/wallet-pnl', walletPnlRouter);
 app.use('/api/tracked-wallets', trackedWalletsRouter);
+app.use('/api/market-pulse', marketPulseRouter);
 
 const server = http.createServer(app);
 attachWebSocketServer(server);
