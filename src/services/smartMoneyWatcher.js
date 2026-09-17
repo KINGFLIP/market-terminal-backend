@@ -30,6 +30,12 @@ async function scanAsset(asset) {
   const latestBlock = await p.getBlockNumber();
   const fromBlock = lastCheckedBlock ?? latestBlock - 500; // first run: look back ~500 blocks
 
+  // If the chain hasn't produced a new block since our last checkpoint,
+  // fromBlock can end up greater than latestBlock — asking the RPC for a
+  // negative range, which it (understandably) rejects. Nothing new to see
+  // yet, so just skip this asset until next cycle instead of erroring.
+  if (fromBlock > latestBlock) return;
+
   const events = await contract.queryFilter(contract.filters.Transfer(), fromBlock, latestBlock);
   const decimals = await contract.decimals().catch(() => 18);
 
